@@ -7,6 +7,12 @@ Run:
 $ docker run --name bs --net=host -d rboyer/blankspace -name my-name
 ```
 
+HTTP:
+```
+$ curl -sL localhost:8080
+{"Name":"v2"}
+```
+
 gRPC:
 
 ```

@@ -9,6 +9,7 @@ import (
 
 var (
 	name     = flag.String("name", "", "name to self identify over the network with")
+	httpAddr = flag.String("http-addr", ":8080", "optional: address to bind for http (host:port or :port)")
 	grpcAddr = flag.String("grpc-addr", ":8079", "optional: address to bind for grpc (host:port or :port)")
 	tcpAddr  = flag.String("tcp-addr", ":8078", "optional: address to bind for ascii tcp (host:port or :port)")
 )
@@ -23,6 +24,12 @@ func main() {
 	errCh := make(chan error, 2)
 
 	any := false
+	if isEnabledAddr(*httpAddr) {
+		any = true
+		go func() {
+			errCh <- serveHTTP(*name, *httpAddr)
+		}()
+	}
 	if isEnabledAddr(*grpcAddr) {
 		any = true
 		go func() {
@@ -37,7 +44,7 @@ func main() {
 	}
 
 	if !any {
-		log.Fatal("one of -grpc-addr or -tcp-addr should be enabled")
+		log.Fatal("one of -http-addr, -grpc-addr, or -tcp-addr should be enabled")
 	}
 
 	if err := <-errCh; err != nil {
