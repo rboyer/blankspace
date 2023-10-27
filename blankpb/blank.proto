@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package blankspace;
+
+message DescribeRequest {}
+
+message DescribeResponse {
+  string name = 1;
+}
+
+service Server {
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
+}

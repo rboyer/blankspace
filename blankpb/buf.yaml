@@ -1,0 +1,14 @@
+version: v1
+name: buf.build/rboyer/blankspace
+lint:
+  use:
+    - DEFAULT
+  except:
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_VERSION_SUFFIX
+    - SERVICE_SUFFIX
+
+  allow_comment_ignores: true
+breaking:
+  use:
+    - FILE
