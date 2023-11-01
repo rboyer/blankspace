@@ -3,6 +3,7 @@ module github.com/rboyer/blankspace
 go 1.20
 
 require (
+	github.com/hashicorp/go-cleanhttp v0.5.2
 	google.golang.org/grpc v1.55.0
 	google.golang.org/protobuf v1.30.0
 )

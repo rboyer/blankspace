@@ -46,3 +46,10 @@ my-name
 quit
 Connection closed by foreign host.
 ```
+
+HTTP proxied request:
+
+```
+$ curl --get -sL localhost:8080/fetch --data-urlencode "url=http://neverssl.com"
+...(fetch is proxied)...
+```
