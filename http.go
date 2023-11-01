@@ -1,15 +1,20 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/hashicorp/go-cleanhttp"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func serveHTTP(name, addr string) error {
@@ -18,9 +23,20 @@ func serveHTTP(name, addr string) error {
 	}
 	log.Printf("HTTP listening on %s", addr)
 
-	client := cleanhttp.DefaultClient()
+	clientHTTP1 := cleanhttp.DefaultClient()
 
-	http.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
+	clientHTTP2 := cleanhttp.DefaultClient()
+	clientHTTP2.Transport = &http2.Transport{
+		AllowHTTP: true,
+		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, network, addr)
+		},
+	}
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/fetch", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
@@ -48,6 +64,19 @@ func serveHTTP(name, addr string) error {
 		proxyReq, err := http.NewRequestWithContext(r.Context(), http.MethodGet, u, nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("bad proxy url %q: %v", u, err),
+				http.StatusBadRequest,
+			)
+			return
+		}
+
+		var client *http.Client
+		switch r.ProtoMajor {
+		case 1:
+			client = clientHTTP1
+		case 2:
+			client = clientHTTP2
+		default:
+			http.Error(w, "unsupported http request protocol version",
 				http.StatusBadRequest,
 			)
 			return
@@ -81,7 +110,7 @@ func serveHTTP(name, addr string) error {
 			}
 		}
 	})
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
 			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 			return
@@ -101,5 +130,11 @@ func serveHTTP(name, addr string) error {
 		}
 	})
 
-	return http.ListenAndServe(addr, nil)
+	h2s := &http2.Server{}
+
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: h2c.NewHandler(mux, h2s),
+	}
+	return srv.ListenAndServe()
 }
